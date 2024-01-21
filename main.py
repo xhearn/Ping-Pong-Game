@@ -38,7 +38,31 @@ ball.goto(0, 0)    # (0, 0) is in middle
 ball.dx = 0.2     # ball moves by 2 pixels
 ball.dy = -0.2
 
+# Multiple Balls List
+balls = [ball]  # Start with one ball in the list
 
+# Pause state
+is_paused = False
+
+# Pause and start the game
+def toggle_pause():
+    global is_paused
+    is_paused = not is_paused
+
+# Add a new ball to the game
+def add_ball():
+    new_ball = turtle.Turtle()
+    new_ball.speed(0)
+    new_ball.shape("circle")
+    new_ball.color("white")
+    new_ball.penup()
+    new_ball.goto(0, 0)
+    new_ball.dx = 0.2 * (-1 if len(balls) % 2 == 0 else 1)
+    new_ball.dy = -0.2
+    balls.append(new_ball)
+
+# Keyboard event for pausing
+window.onkeypress(toggle_pause, 'p')
 # for scoring
 
 score_one = 0
@@ -87,71 +111,97 @@ window.onkeypress(paddle_one_down, 's')
 window.onkeypress(paddle_two_up, 'Up')
 window.onkeypress(paddle_two_down, 'Down')
 
-# main loop for the game to run
+# Function to change paddle color back after 10 seconds
+def reset_paddle_color(paddle):
+    paddle.color("white")
+
+# New variables to track when to add a ball and paddle power-up state
+last_score_for_new_ball = [0, 0]  # [score_one, score_two]
+
+# Function to update the score
+def update_score(player_one, player_two):
+    global score_one, score_two
+    score_one += player_one
+    score_two += player_two
+    write_score.clear()
+    write_score.write("Player One: {}        Player Two: {}".format(score_one, score_two), align="center", font=("Courier", 24, "normal"))
+
+    # Check for paddle power-up and change color
+    if score_one % 10 == 0 and score_one != 0:
+        paddle_one.color("red")
+        window.ontimer(lambda: reset_paddle_color(paddle_one), 10000)
+    if score_two % 10 == 0 and score_two != 0:
+        paddle_two.color("red")
+        window.ontimer(lambda: reset_paddle_color(paddle_two), 10000)
+
+# Collision detection with power-up logic
+def check_collision(ball):
+    normal_speed_dx, normal_speed_dy = 0.2, -0.2  # Define normal ball speed
+
+    if (340 < ball.xcor() < 350) and (paddle_two.ycor() + 50 > ball.ycor() > paddle_two.ycor() - 50):
+        ball.setx(340)
+        ball.dx *= -1
+        if paddle_two.color()[0] == "red":
+            ball.dx = 1.5 * normal_speed_dx if ball.dx > 0 else -1.5 * normal_speed_dx
+        else:
+            ball.dx = normal_speed_dx if ball.dx > 0 else -normal_speed_dx
+        winsound.PlaySound("bounce.wav", winsound.SND_ASYNC)
+
+    elif (-350 < ball.xcor() < -340) and (paddle_one.ycor() + 50 > ball.ycor() > paddle_one.ycor() - 50):
+        ball.setx(-340)
+        ball.dx *= -1
+        if paddle_one.color()[0] == "red":
+            ball.dx = 1.5 * normal_speed_dx if ball.dx > 0 else -1.5 * normal_speed_dx
+        else:
+            ball.dx = normal_speed_dx if ball.dx > 0 else -normal_speed_dx
+        winsound.PlaySound("bounce.wav", winsound.SND_ASYNC)
+
+# Main game loop
 while True:
     window.update()
-
-    # Ball Movement
-    ball.setx(ball.xcor() + ball.dx)
-    ball.sety(ball.ycor() + ball.dy)
-
-    # Ball's Border checking
-    if ball.ycor() > 290:
-        ball.sety(290)
-        ball.dy *= -1   # reversing direction
-        winsound.PlaySound("bounce.wav", winsound.SND_ASYNC)
-
-    if ball.ycor() < -290:
-        ball.sety(-290)
-        ball.dy *= -1   # reversing direction
-        winsound.PlaySound("bounce.wav", winsound.SND_ASYNC)
-
-    if ball.xcor() > 390:   # past the paddle
-        ball.goto(0, 0)
-        ball.dx = -0.2
-        if ball.dy > 0 : 
-            ball.dy = 0.2
-        else :
-            ball.dy = -0.2
-        score_one += 1
-        write_score.clear()
-        write_score.write("Player One: {}           Player Two: {}".format(score_one, score_two), align="center",
-                          font=("Courier", 24, "normal"))
+    if not is_paused:
         
-        if (wid_one != 1 and wid_two != 1) :
-            wid_one -= 1
-            wid_two += 1
-            paddle_one.shapesize(stretch_wid=wid_one, stretch_len=1)
-            paddle_two.shapesize(stretch_wid=wid_two, stretch_len=1)
+        
+        # Move each ball in the list of balls
+        for ball in balls:
+            ball.setx(ball.xcor() + ball.dx)
+            ball.sety(ball.ycor() + ball.dy)
+            
+            # Ball's Border checking
+            if ball.ycor() > 290:
+                ball.sety(290)
+                ball.dy *= -1   # reversing direction
+                winsound.PlaySound("bounce.wav", winsound.SND_ASYNC)
 
-    if ball.xcor() < -390:   # past the paddle
-        ball.goto(0, 0)
-        ball.dx = 0.2
-        if ball.dy > 0 : 
-            ball.dy = 0.2
-        else :
-            ball.dy = -0.2
-        score_two += 1
-        write_score.clear()
-        write_score.write("Player One: {}           Player Two: {}".format(score_one, score_two), align="center",
-                          font=("Courier", 24, "normal"))
-        if (wid_one != 1 and wid_two != 1) :
-            wid_two -= 1
-            wid_one += 1
-            paddle_two.shapesize(stretch_wid=wid_two, stretch_len=1)
-            paddle_one.shapesize(stretch_wid=wid_one, stretch_len=1)
+            elif ball.ycor() < -290:
+                ball.sety(-290)
+                ball.dy *= -1   # reversing direction
+                winsound.PlaySound("bounce.wav", winsound.SND_ASYNC)
+            # Check ball & paddle collisions with power-up logic
+            check_collision(ball)
+            # Ball's Left and Right Border checking
+            if ball.xcor() > 390:   # past the right paddle
+                ball.goto(0, 0)
+                ball.dx *= -1
+                update_score(1, 0)   # Player One Scores
 
-    # Collisions b/w ball & paddle
+            elif ball.xcor() < -390:   # past the left paddle
+                ball.goto(0, 0)
+                ball.dx *= -1
+                update_score(0, 1)   # Player Two Scores
 
-    if (340 < ball.xcor() < 350) and (paddle_two.ycor() + 40 > ball.ycor() > paddle_two.ycor() - 40):
-        ball.setx(340)
-        ball.dx *= -1.05
-        ball.dy *= 1.05
-        winsound.PlaySound("bounce.wav", winsound.SND_ASYNC)
+            # Collisions between ball & paddles
+            if (340 < ball.xcor() < 350) and (paddle_two.ycor() + 50 > ball.ycor() > paddle_two.ycor() - 50):
+                ball.setx(340)
+                ball.dx *= -1
+                # If paddle_two is red, increase ball speed
+                if paddle_two.color() == ("red",):
+                    ball.dx *= 1.5
+                winsound.PlaySound("bounce.wav", winsound.SND_ASYNC)
 
-
-    if (-340 > ball.xcor() > -350) and (paddle_one.ycor() + 40 > ball.ycor() > paddle_one.ycor() - 40):
-        ball.setx(-340)
-        ball.dx *= -1.05
-        ball.dy *= 1.05
-        winsound.PlaySound("bounce.wav", winsound.SND_ASYNC)
+            elif (-340 > ball.xcor() > -350) and (paddle_one.ycor() + 50 > ball.ycor() > paddle_one.ycor() - 50):
+                ball.setx(-340)
+                ball.dx *= -1
+                if paddle_one.color() == ("red",):
+                    ball.dx *= 1.5
+                winsound.PlaySound("bounce.wav", winsound.SND_ASYNC)
